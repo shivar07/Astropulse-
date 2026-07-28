@@ -1,8 +1,9 @@
 [build]
-  command = "pnpm run build"
+  command = "npm run build"
   publish = "dist"
 
 [[redirects]]
-  from = "/*"
-  to = "/index.html"
+  from = "/nasa-proxy/*"
+  to = "https://apod.nasa.gov/:splat"
   status = 200
+  force = true

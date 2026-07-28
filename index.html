@@ -1,52 +1,49 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>NASA APOD // Mission Control</title>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Black+Ops+One&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  </head>
-  <body>
-    <div class="stars-container">
-      <div class="stars"></div>
-      <div class="stars2"></div>
-      <div class="stars3"></div>
-      <div class="nebula"></div>
-    </div>
 
-    <div class="dashboard-wrapper">
-      <header class="dashboard-header">
-        <div class="header-left">
-          <div class="status-indicator">
-            <span class="blinking-dot"></span>
-            <span class="status-text">SUJAY PATEL</span>
-          </div>
-          <h1>NASA APOD <span class="accent-text">MISSION CONTROL</span></h1>
-        </div>
-        <div class="header-right">
-          <div class="control-panel">
-            <label class="control-label">TEMPORAL COORDINATES</label>
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NASA Astronomy Picture of the Day</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap"
+    rel="stylesheet">
+</head>
+
+<body>
+  <div class="dashboard-wrapper">
+    <header class="dashboard-header">
+      <div class="header-left">
+        <h1>NASA Astronomy Picture <span class="accent-text">of the Day</span></h1>
+      </div>
+      <div class="header-right">
+        <div class="control-panel">
+          <label class="control-label">Select Date</label>
+          <div class="control-row">
+            <button class="hud-nav-btn" id="prev-sol-btn" title="Previous Day (Left Arrow)">◀ Previous</button>
             <div class="input-glow-wrapper" id="temporal-coordinates-trigger">
               <div class="coordinates-readout">
                 <span id="current-date-display">SELECT DATE</span>
                 <svg class="calendar-icon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                  <path d="M19,4H18V2H16V4H8V2H6V4H5A2,2 0 0,0 3,6V20A2,2 0 0,0 5,22H19A2,2 0 0,0 21,20V6A2,2 0 0,0 19,4M19,20H5V10H19V20M19,8H5V6H19V8M7,12H9V14H7V12M11,12H13V14H11V12M15,12H17V14H15V12M7,16H9V18H7V16M11,16H13V18H11V16M15,16H17V18H15V16Z" />
+                  <path
+                    d="M19,4H18V2H16V4H8V2H6V4H5A2,2 0 0,0 3,6V20A2,2 0 0,0 5,22H19A2,2 0 0,0 21,20V6A2,2 0 0,0 19,4M19,20H5V10H19V20M19,8H5V6H19V8M7,12H9V14H7V12M11,12H13V14H11V12M15,12H17V14H15V12M7,16H9V18H7V16M11,16H13V18H11V16M15,16H17V18H15V16Z" />
                 </svg>
               </div>
             </div>
-            <!-- Custom inline calendar popover -->
-            <div id="calendar-popover" class="calendar-popover"></div>
+            <button class="hud-nav-btn" id="next-sol-btn" title="Next Day (Right Arrow)">Next ▶</button>
+            <button class="hud-action-btn" id="random-telemetry-btn" title="Random Image">Random</button>
+            <button class="hud-action-btn" id="auto-scan-btn" title="Toggle Auto Play">Auto Play: OFF</button>
           </div>
+          <div id="calendar-popover" class="calendar-popover"></div>
         </div>
-      </header>
+      </div>
+    </header>
 
-      <main id="app"></main>
-    </div>
+    <main id="app"></main>
+  </div>
 
-    <script type="module" src="/src/main.js"></script>
-  </body>
+  <script type="module" src="/src/main.js"></script>
+</body>
+
 </html>
-
-
-

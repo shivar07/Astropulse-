@@ -1,7 +1,7 @@
 # NASA Astronomy Picture of the Day (APOD)
 
 ## Live Demo
-Check out the live site: https://sujay-nasa-apod.netlify.app/
+Check out the live site: https://astropulseapod.netlify.app/
 
 ## Run Locally
 1. Clone the repository.
@@ -21,3 +21,5 @@ Check out the live site: https://sujay-nasa-apod.netlify.app/
    ```
    pnpm run build
    ```
+
+

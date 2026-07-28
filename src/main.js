@@ -17,13 +17,76 @@ const getTodayDateString = () => {
 
 const todayStr = getTodayDateString();
 let currentDate = todayStr;
-let viewDate = new Date(); // Active month/year view in the popover
+let viewDate = new Date(); 
+
+const minDateStr = '1995-06-16';
+const todayDateStr = todayStr;
+
+let isAutoScanning = false;
+let countdownVal = 15;
+let countdownTimer = null;
+
+const updateNavButtonsState = () => {
+  const prevBtn = document.getElementById('prev-sol-btn');
+  const nextBtn = document.getElementById('next-sol-btn');
+  
+  if (prevBtn) {
+    const isAtMin = currentDate === minDateStr;
+    prevBtn.disabled = isAtMin;
+  }
+  if (nextBtn) {
+    const isAtMax = currentDate === todayDateStr;
+    nextBtn.disabled = isAtMax;
+  }
+};
+
+const downloadImage = (url, filename) => {
+  const downloadBtn = document.querySelector('.download-link');
+  const originalText = downloadBtn ? downloadBtn.textContent : 'Download Image';
+  if (downloadBtn) {
+    downloadBtn.textContent = 'Downloading...';
+    downloadBtn.style.pointerEvents = 'none';
+    downloadBtn.style.opacity = '0.6';
+  }
+
+  let targetUrl = url;
+  if (url.startsWith('https://apod.nasa.gov')) {
+    targetUrl = `/nasa-proxy${url.replace('https://apod.nasa.gov', '')}`;
+  }
+
+  fetch(targetUrl)
+    .then((response) => {
+      if (!response.ok) throw new Error('Blob fetch failed');
+      return response.blob();
+    })
+    .then((blob) => {
+      const blobUrl = URL.createObjectURL(blob);
+      const tempLink = document.createElement('a');
+      tempLink.href = blobUrl;
+      tempLink.download = filename || 'nasa-apod-image.jpg';
+      document.body.appendChild(tempLink);
+      tempLink.click();
+      document.body.removeChild(tempLink);
+      URL.revokeObjectURL(blobUrl);
+    })
+    .catch((err) => {
+      console.error('Download failed, opening in new tab:', err);
+      window.open(url, '_blank');
+    })
+    .finally(() => {
+      if (downloadBtn) {
+        downloadBtn.textContent = originalText;
+        downloadBtn.style.pointerEvents = 'auto';
+        downloadBtn.style.opacity = '1';
+      }
+    });
+};
 
 const formatDateForReadout = (dateStr) => {
   if (!dateStr) return 'SELECT DATE';
   const parts = dateStr.split('-');
   if (parts.length === 3) {
-    return `${parts[1]}/${parts[2]}/${parts[0]}`; // MM/DD/YYYY format
+    return `${parts[1]}/${parts[2]}/${parts[0]}`; 
   }
   return dateStr;
 };
@@ -32,7 +95,7 @@ const showLoading = () => {
   appContainer.innerHTML = `
     <div class="loading-container">
       <div class="radar-loader"></div>
-      <div class="loading-text">FETCHING QUANTUM COORDINATES // SECURE FEED</div>
+      <div class="loading-text">Loading picture of the day...</div>
     </div>
   `;
 };
@@ -40,8 +103,8 @@ const showLoading = () => {
 const showError = (message) => {
   appContainer.innerHTML = `
     <div class="error-container">
-      <div class="error-icon">⚠ ERROR</div>
-      <div class="error-title">FEED ACQUISITION FAILURE</div>
+      <div class="error-icon">⚠</div>
+      <div class="error-title">Unable to Load Content</div>
       <div class="error-message">${message}</div>
     </div>
   `;
@@ -72,6 +135,16 @@ const buildMediaHTML = (data) => {
   }
 };
 
+const fetchWithTimeout = (url, options = {}, timeout = 8000) => {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
+  
+  return fetch(url, {
+    ...options,
+    signal: controller.signal
+  }).finally(() => clearTimeout(id));
+};
+
 const fetchAPOD = (date = '') => {
   showLoading();
 
@@ -85,23 +158,26 @@ const fetchAPOD = (date = '') => {
     queryUrl += `&date=${date}`;
   }
 
-  fetch(queryUrl)
+  fetchWithTimeout(queryUrl, {}, 8000)
     .then((response) => {
       if (!response.ok) {
-        return response.json().then((errData) => {
-          throw new Error(errData.msg || errData.error?.message || `HTTP error ${response.status}`);
-        }).catch(() => {
-          throw new Error(`HTTP network error ${response.status}`);
-        });
+        return response.json().then(
+          (errData) => {
+            throw new Error(errData.msg || errData.error?.message || `HTTP error ${response.status}`);
+          },
+          () => {
+            throw new Error(`HTTP network error ${response.status}`);
+          }
+        );
       }
       return response.json();
     })
     .then((data) => {
-      const title = data.title || 'Untitled Transmission';
-      const explanation = data.explanation || 'No readout information provided for this coordinate sector.';
+      const title = data.title || 'Untitled';
+      const explanation = data.explanation || 'No description available for this date.';
       const displayDate = data.date || date || todayStr;
       const mediaHTML = buildMediaHTML(data);
-      const copyright = data.copyright ? data.copyright.replace(/\n/g, ' ').trim() : 'PUBLIC DOMAIN';
+      const copyright = data.copyright ? data.copyright.replace(/\n/g, ' ').trim() : 'Public Domain';
       const isHDImage = data.media_type === 'image' && data.hdurl;
 
       appContainer.innerHTML = `
@@ -115,11 +191,11 @@ const fetchAPOD = (date = '') => {
           <div class="readout-card">
             <div class="meta-group">
               <div class="meta-item">
-                <span class="meta-label">SECTOR DATE</span>
+                <span class="meta-label">Date</span>
                 <div class="meta-value">${displayDate}</div>
               </div>
               <div class="meta-item">
-                <span class="meta-label">SOURCE AGENCY</span>
+                <span class="meta-label">Agency</span>
                 <div class="meta-value">NASA APOD</div>
               </div>
             </div>
@@ -128,13 +204,13 @@ const fetchAPOD = (date = '') => {
             
             <div class="meta-group" style="margin-top: -8px; border-bottom: none; padding-bottom: 0;">
               <div class="meta-item">
-                <span class="meta-label">DATA TYPE</span>
+                <span class="meta-label">Type</span>
                 <div class="meta-value" style="color: var(--neon-purple); text-shadow: none;">
                   ${data.media_type.toUpperCase()}
                 </div>
               </div>
               <div class="meta-item">
-                <span class="meta-label">OWNERSHIP SIGNATURE</span>
+                <span class="meta-label">Copyright</span>
                 <div class="meta-value" style="color: var(--neon-orange); text-shadow: none; font-size: 0.8rem;">
                   ${copyright.toUpperCase()}
                 </div>
@@ -143,15 +219,18 @@ const fetchAPOD = (date = '') => {
           </div>
 
           <div class="readout-card" style="flex: 1;">
-            <h3 class="hud-readout-header">TRANSMISSION DECODED</h3>
+            <h3 class="hud-readout-header">Description</h3>
             <p class="readout-explanation">${explanation}</p>
             ${
-              isHDImage
+              data.media_type === 'image'
                 ? `
-              <div class="hd-link-wrapper" style="margin-top: 24px; text-align: right;">
-                <a href="${data.hdurl}" target="_blank" class="hd-link">
-                  VIEW FULL-RES DATA // HD
-                </a>
+              <div class="hd-link-wrapper" style="margin-top: 24px; display: flex; gap: 12px; justify-content: flex-end; flex-wrap: wrap;">
+                ${
+                  data.hdurl
+                    ? `<a href="${data.hdurl}" target="_blank" class="hd-link">View HD Image</a>`
+                    : ''
+                }
+                <button class="hd-link download-link" id="download-apod-btn">Download Image</button>
               </div>
             `
                 : ''
@@ -164,28 +243,33 @@ const fetchAPOD = (date = '') => {
         currentDateDisplay.textContent = formatDateForReadout(displayDate);
       }
       currentDate = displayDate;
+      updateNavButtonsState();
 
-      const hdBtn = document.querySelector('.hd-link');
-      if (hdBtn) {
-        hdBtn.addEventListener('mouseenter', () => {
-          hdBtn.style.boxShadow = '0 0 10px var(--neon-purple)';
-          hdBtn.style.background = 'rgba(255, 255, 255, 0.08)';
-        });
-        hdBtn.addEventListener('mouseleave', () => {
-          hdBtn.style.boxShadow = 'none';
-          hdBtn.style.background = 'rgba(255, 255, 255, 0.02)';
+      const downloadBtn = document.getElementById('download-apod-btn');
+      if (downloadBtn) {
+        downloadBtn.addEventListener('click', () => {
+          const filename = `NASA-APOD-${displayDate}.jpg`;
+          const downloadUrl = data.hdurl || data.url;
+          downloadImage(downloadUrl, filename);
         });
       }
     })
     .catch((error) => {
       console.error('NASA APOD Fetch Error:', error);
-      showError(error.message || 'Unknown network transmission failure.');
+      
+      let errorMsg = error.message || 'Unknown network error.';
+      if (error.name === 'AbortError') {
+        errorMsg = 'Request timed out. Please check your internet connection or check your NASA API key quota.';
+      }
+      
+      showError(errorMsg);
+      
+      if (errorMsg.toLowerCase().includes('rate limit') || errorMsg.includes('429') || errorMsg.toLowerCase().includes('api_key')) {
+        stopAutoScan();
+      }
     });
 };
 
-// ==========================================
-// CUSTOM CALENDAR CONTROLLER
-// ==========================================
 const renderCalendar = () => {
   if (!calendarPopover) return;
 
@@ -196,8 +280,8 @@ const renderCalendar = () => {
   const numberOfDays = new Date(viewYear, viewMonth + 1, 0).getDate();
 
   const monthsList = [
-    'JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE',
-    'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
   ];
 
   let monthOptions = '';
@@ -222,7 +306,7 @@ const renderCalendar = () => {
     </div>
   `;
 
-  const weekdays = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
+  const weekdays = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
   const weekdaysHTML = `
     <div class="calendar-weekdays">
       ${weekdays.map(d => `<div>${d}</div>`).join('')}
@@ -257,7 +341,6 @@ const renderCalendar = () => {
 
   calendarPopover.innerHTML = headerHTML + weekdaysHTML + daysHTML;
 
-  // Header Nav Controls
   document.getElementById('cal-prev-month').addEventListener('click', (e) => {
     e.stopPropagation();
     viewDate.setMonth(viewDate.getMonth() - 1);
@@ -280,7 +363,6 @@ const renderCalendar = () => {
     renderCalendar();
   });
 
-  // Day Selection
   calendarPopover.querySelectorAll('.calendar-day-btn:not(.empty):not(:disabled)').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -289,6 +371,7 @@ const renderCalendar = () => {
       if (currentDateDisplay) {
         currentDateDisplay.textContent = formatDateForReadout(currentDate);
       }
+      stopAutoScan();
       fetchAPOD(currentDate);
       closePopover();
     });
@@ -339,11 +422,115 @@ document.addEventListener('click', (e) => {
   }
 });
 
+const stepDate = (direction) => {
+  stopAutoScan();
+  let tempDate = new Date(currentDate);
+  if (isNaN(tempDate.getTime())) {
+    tempDate = new Date();
+  }
+  tempDate.setDate(tempDate.getDate() + direction);
+  
+  const y = tempDate.getFullYear();
+  const m = String(tempDate.getMonth() + 1).padStart(2, '0');
+  const d = String(tempDate.getDate()).padStart(2, '0');
+  const targetDateStr = `${y}-${m}-${d}`;
+  
+  const minDate = new Date(minDateStr);
+  const maxDate = new Date(todayDateStr);
+  
+  if (tempDate >= minDate && tempDate <= maxDate) {
+    currentDate = targetDateStr;
+    if (currentDateDisplay) {
+      currentDateDisplay.textContent = formatDateForReadout(currentDate);
+    }
+    fetchAPOD(currentDate);
+  }
+};
+
+const fetchRandomAPOD = () => {
+  const minDate = new Date(minDateStr).getTime();
+  const maxDate = new Date(todayDateStr).getTime();
+  const randomTime = minDate + Math.random() * (maxDate - minDate);
+  const randomDate = new Date(randomTime);
+  
+  const y = randomDate.getFullYear();
+  const m = String(randomDate.getMonth() + 1).padStart(2, '0');
+  const d = String(randomDate.getDate()).padStart(2, '0');
+  
+  currentDate = `${y}-${m}-${d}`;
+  if (currentDateDisplay) {
+    currentDateDisplay.textContent = formatDateForReadout(currentDate);
+  }
+  fetchAPOD(currentDate);
+};
+
+const startAutoScan = () => {
+  isAutoScanning = true;
+  const scanBtn = document.getElementById('auto-scan-btn');
+  if (scanBtn) {
+    scanBtn.classList.add('active');
+    scanBtn.textContent = `Playing: ${countdownVal}s`;
+  }
+  
+  countdownTimer = setInterval(() => {
+    countdownVal--;
+    if (countdownVal <= 0) {
+      countdownVal = 15;
+      fetchRandomAPOD();
+    }
+    if (scanBtn) {
+      scanBtn.textContent = `Playing: ${countdownVal}s`;
+    }
+  }, 1000);
+};
+
+const stopAutoScan = () => {
+  if (!isAutoScanning) return;
+  isAutoScanning = false;
+  if (countdownTimer) {
+    clearInterval(countdownTimer);
+    countdownTimer = null;
+  }
+  countdownVal = 15;
+  const scanBtn = document.getElementById('auto-scan-btn');
+  if (scanBtn) {
+    scanBtn.classList.remove('active');
+    scanBtn.textContent = 'Auto Play: OFF';
+  }
+};
+
+const toggleAutoScan = () => {
+  if (isAutoScanning) {
+    stopAutoScan();
+  } else {
+    startAutoScan();
+  }
+};
+
+document.getElementById('prev-sol-btn')?.addEventListener('click', () => stepDate(-1));
+document.getElementById('next-sol-btn')?.addEventListener('click', () => stepDate(1));
+document.getElementById('random-telemetry-btn')?.addEventListener('click', () => {
+  stopAutoScan();
+  fetchRandomAPOD();
+});
+document.getElementById('auto-scan-btn')?.addEventListener('click', toggleAutoScan);
+
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && calendarPopover && calendarPopover.classList.contains('show')) {
     closePopover();
+    return;
+  }
+  
+  const activeEl = document.activeElement;
+  if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT' || activeEl.tagName === 'TEXTAREA')) {
+    return;
+  }
+  
+  if (e.key === 'ArrowLeft') {
+    stepDate(-1);
+  } else if (e.key === 'ArrowRight') {
+    stepDate(1);
   }
 });
 
-// Initial load
 fetchAPOD();

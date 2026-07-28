@@ -3,7 +3,9 @@ import './style.css';
 const API_KEY = import.meta.env.VITE_NASA_API_KEY;
 
 const appContainer = document.querySelector('#app');
-const datePicker = document.querySelector('#datepicker');
+const currentDateDisplay = document.querySelector('#current-date-display');
+const coordinatesTrigger = document.querySelector('#temporal-coordinates-trigger');
+const calendarPopover = document.querySelector('#calendar-popover');
 
 const getTodayDateString = () => {
   const today = new Date();
@@ -14,10 +16,17 @@ const getTodayDateString = () => {
 };
 
 const todayStr = getTodayDateString();
-if (datePicker) {
-  datePicker.max = todayStr;
-  datePicker.value = todayStr;
-}
+let currentDate = todayStr;
+let viewDate = new Date(); // Active month/year view in the popover
+
+const formatDateForReadout = (dateStr) => {
+  if (!dateStr) return 'SELECT DATE';
+  const parts = dateStr.split('-');
+  if (parts.length === 3) {
+    return `${parts[1]}/${parts[2]}/${parts[0]}`; // MM/DD/YYYY format
+  }
+  return dateStr;
+};
 
 const showLoading = () => {
   appContainer.innerHTML = `
@@ -151,10 +160,15 @@ const fetchAPOD = (date = '') => {
         </section>
       `;
 
+      if (currentDateDisplay) {
+        currentDateDisplay.textContent = formatDateForReadout(displayDate);
+      }
+      currentDate = displayDate;
+
       const hdBtn = document.querySelector('.hd-link');
       if (hdBtn) {
         hdBtn.addEventListener('mouseenter', () => {
-          hdBtn.style.boxShadow = 'var(--shadow-neon)';
+          hdBtn.style.boxShadow = '0 0 10px var(--neon-purple)';
           hdBtn.style.background = 'rgba(255, 255, 255, 0.08)';
         });
         hdBtn.addEventListener('mouseleave', () => {
@@ -169,10 +183,167 @@ const fetchAPOD = (date = '') => {
     });
 };
 
-if (datePicker) {
-  datePicker.addEventListener('change', (e) => {
-    fetchAPOD(e.target.value);
+// ==========================================
+// CUSTOM CALENDAR CONTROLLER
+// ==========================================
+const renderCalendar = () => {
+  if (!calendarPopover) return;
+
+  const viewYear = viewDate.getFullYear();
+  const viewMonth = viewDate.getMonth();
+
+  const firstDayIndex = new Date(viewYear, viewMonth, 1).getDay();
+  const numberOfDays = new Date(viewYear, viewMonth + 1, 0).getDate();
+
+  const monthsList = [
+    'JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE',
+    'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'
+  ];
+
+  let monthOptions = '';
+  monthsList.forEach((m, idx) => {
+    monthOptions += `<option value="${idx}" ${idx === viewMonth ? 'selected' : ''}>${m}</option>`;
   });
+
+  let yearOptions = '';
+  const currentYear = new Date().getFullYear();
+  for (let y = currentYear; y >= 1995; y--) {
+    yearOptions += `<option value="${y}" ${y === viewYear ? 'selected' : ''}>${y}</option>`;
+  }
+
+  const headerHTML = `
+    <div class="calendar-header">
+      <button class="calendar-nav-btn" id="cal-prev-month" title="Previous Month">◀</button>
+      <div class="calendar-select-group">
+        <select class="calendar-select" id="cal-select-month">${monthOptions}</select>
+        <select class="calendar-select" id="cal-select-year">${yearOptions}</select>
+      </div>
+      <button class="calendar-nav-btn" id="cal-next-month" title="Next Month">▶</button>
+    </div>
+  `;
+
+  const weekdays = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
+  const weekdaysHTML = `
+    <div class="calendar-weekdays">
+      ${weekdays.map(d => `<div>${d}</div>`).join('')}
+    </div>
+  `;
+
+  let daysHTML = '<div class="calendar-days">';
+  for (let i = 0; i < firstDayIndex; i++) {
+    daysHTML += '<div class="calendar-day-btn empty"></div>';
+  }
+
+  const minDate = new Date('1995-06-16');
+  const maxDate = new Date();
+
+  for (let day = 1; day <= numberOfDays; day++) {
+    const dateString = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const thisDate = new Date(viewYear, viewMonth, day);
+    const isDisabled = thisDate < minDate || thisDate > maxDate;
+    const isActive = dateString === currentDate;
+
+    daysHTML += `
+      <button 
+        class="calendar-day-btn ${isActive ? 'active' : ''}" 
+        data-date="${dateString}" 
+        ${isDisabled ? 'disabled' : ''}
+      >
+        ${day}
+      </button>
+    `;
+  }
+  daysHTML += '</div>';
+
+  calendarPopover.innerHTML = headerHTML + weekdaysHTML + daysHTML;
+
+  // Header Nav Controls
+  document.getElementById('cal-prev-month').addEventListener('click', (e) => {
+    e.stopPropagation();
+    viewDate.setMonth(viewDate.getMonth() - 1);
+    renderCalendar();
+  });
+
+  document.getElementById('cal-next-month').addEventListener('click', (e) => {
+    e.stopPropagation();
+    viewDate.setMonth(viewDate.getMonth() + 1);
+    renderCalendar();
+  });
+
+  document.getElementById('cal-select-month').addEventListener('change', (e) => {
+    viewDate.setMonth(parseInt(e.target.value));
+    renderCalendar();
+  });
+
+  document.getElementById('cal-select-year').addEventListener('change', (e) => {
+    viewDate.setFullYear(parseInt(e.target.value));
+    renderCalendar();
+  });
+
+  // Day Selection
+  calendarPopover.querySelectorAll('.calendar-day-btn:not(.empty):not(:disabled)').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const selectedDate = btn.dataset.date;
+      currentDate = selectedDate;
+      if (currentDateDisplay) {
+        currentDateDisplay.textContent = formatDateForReadout(currentDate);
+      }
+      fetchAPOD(currentDate);
+      closePopover();
+    });
+  });
+};
+
+const openPopover = () => {
+  if (!calendarPopover) return;
+  if (currentDate) {
+    const parts = currentDate.split('-');
+    if (parts.length === 3) {
+      viewDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    }
+  }
+  renderCalendar();
+  calendarPopover.style.display = 'flex';
+  setTimeout(() => {
+    calendarPopover.classList.add('show');
+  }, 10);
+};
+
+const closePopover = () => {
+  if (!calendarPopover) return;
+  calendarPopover.classList.remove('show');
+  setTimeout(() => {
+    calendarPopover.style.display = 'none';
+  }, 200);
+};
+
+const togglePopover = (e) => {
+  e.stopPropagation();
+  if (calendarPopover.classList.contains('show')) {
+    closePopover();
+  } else {
+    openPopover();
+  }
+};
+
+if (coordinatesTrigger) {
+  coordinatesTrigger.addEventListener('click', togglePopover);
 }
 
+document.addEventListener('click', (e) => {
+  if (calendarPopover && calendarPopover.classList.contains('show')) {
+    if (!calendarPopover.contains(e.target) && !coordinatesTrigger.contains(e.target)) {
+      closePopover();
+    }
+  }
+});
+
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && calendarPopover && calendarPopover.classList.contains('show')) {
+    closePopover();
+  }
+});
+
+// Initial load
 fetchAPOD();

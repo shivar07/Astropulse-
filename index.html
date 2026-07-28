@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NASA APOD // Mission Control</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Black+Ops+One&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  </head>
+  <body>
+    <div class="stars-container">
+      <div class="stars"></div>
+      <div class="stars2"></div>
+      <div class="stars3"></div>
+      <div class="nebula"></div>
+    </div>
+
+    <div class="dashboard-wrapper">
+      <header class="dashboard-header">
+        <div class="header-left">
+          <div class="status-indicator">
+            <span class="blinking-dot"></span>
+            <span class="status-text">SUJAY PATEL</span>
+          </div>
+          <h1>NASA APOD <span class="accent-text">MISSION CONTROL</span></h1>
+        </div>
+        <div class="header-right">
+          <div class="control-panel">
+            <label for="datepicker" class="control-label">TEMPORAL COORDINATES</label>
+            <div class="input-glow-wrapper">
+              <input type="date" id="datepicker" class="dashboard-input" />
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main id="app"></main>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
+
+
+

@@ -1,9 +1,2 @@
 [build]
-  command = "npm run build"
-  publish = "dist"
-
-[[redirects]]
-  from = "/nasa-proxy/*"
-  to = "https://apod.nasa.gov/:splat"
-  status = 200
-  force = true
+  publish = "."
